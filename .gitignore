@@ -100,3 +100,6 @@ docs/_templates
 .DS_Store
 .idea/
 *.ipynb
+
+# Visual Studio Code
+.vscode/

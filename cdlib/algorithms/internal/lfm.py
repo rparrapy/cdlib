@@ -1,5 +1,8 @@
 import random
 
+from networkx.algorithms.boundary import edge_boundary
+
+
 """
 Lancichinetti, Andrea, Santo Fortunato, and János Kertész. 
 "Detecting the overlapping and hierarchical algorithms structure in complex networks"
@@ -9,17 +12,28 @@ New Journal of Physics 11.3 (2009): 033015.>>
 
 class Community(object):
 
-    def __init__(self, G, alpha=1.0):
+    def __init__(self, G, alpha=1.0, weight=None):
         self.g = G
         self.alpha = alpha
+        self.weight = weight
         self.nodes = set()
         self.k_in = 0
         self.k_out = 0
 
     def add_node(self, node):
         neighbors = set(self.g.neighbors(node))
-        node_k_in = len(neighbors & self.nodes)
-        node_k_out = len(neighbors) - node_k_in
+        if self.weight:
+            node_k_in = sum(
+                e[2][self.weight] 
+                for e
+                in edge_boundary(self.g, [node], neighbors & self.nodes))
+            node_k_out = sum(
+                e[2][self.weight] 
+                for e
+                in edge_boundary(self.g, [node], neighbors)) - node_k_in
+        else:
+            node_k_in = len(neighbors & self.nodes)
+            node_k_out = len(neighbors) - node_k_in
         self.nodes.add(node)
         self.k_in += 2 * node_k_in
         self.k_out = self.k_out + node_k_out - node_k_in
@@ -27,8 +41,18 @@ class Community(object):
     def remove_vertex(self, node):
         neighbors = set(self.g.neighbors(node))
         community_nodes = self.nodes
-        node_k_in = len(neighbors & community_nodes)
-        node_k_out = len(neighbors) - node_k_in
+        if self.weight:
+            node_k_in = sum(
+                e[2][self.weight] 
+                for e
+                in edge_boundary(self.g, [node], neighbors & self.nodes))
+            node_k_out = sum(
+                e[2][self.weight] 
+                for e
+                in edge_boundary(self.g, [node], neighbors)) - node_k_in
+        else:
+            node_k_in = len(neighbors & self.nodes)
+            node_k_out = len(neighbors) - node_k_in
         self.nodes.remove(node)
         self.k_in -= 2 * node_k_in
         self.k_out = self.k_out - node_k_out + node_k_in
@@ -37,8 +61,18 @@ class Community(object):
         neighbors = set(self.g.neighbors(node))
         old_k_in = self.k_in
         old_k_out = self.k_out
-        vertex_k_in = len(neighbors & self.nodes)
-        vertex_k_out = len(neighbors) - vertex_k_in
+        if self.weight:
+            vertex_k_in = sum(
+                e[2][self.weight] 
+                for e
+                in edge_boundary(self.g, [node], neighbors & self.nodes))
+            vertex_k_out = sum(
+                e[2][self.weight] 
+                for e
+                in edge_boundary(self.g, [node], neighbors)) - vertex_k_in
+        else:
+            vertex_k_in = len(neighbors & self.nodes)
+            vertex_k_out = len(neighbors) - vertex_k_in
         new_k_in = old_k_in + 2 * vertex_k_in
         new_k_out = old_k_out + vertex_k_out - vertex_k_in
         new_fitness = new_k_in / (new_k_in + new_k_out) ** self.alpha
@@ -49,8 +83,18 @@ class Community(object):
         neighbors = set(self.g.neighbors(node))
         new_k_in = self.k_in
         new_k_out = self.k_out
-        node_k_in = len(neighbors & self.nodes)
-        node_k_out = len(neighbors) - node_k_in
+        if self.weight:
+            node_k_in = sum(
+                e[2][self.weight] 
+                for e
+                in edge_boundary(self.g, [node], neighbors & self.nodes))
+            node_k_out = sum(
+                e[2][self.weight] 
+                for e
+                in edge_boundary(self.g, [node], neighbors)) - node_k_in
+        else:
+            node_k_in = len(neighbors & self.nodes)
+            node_k_out = len(neighbors) - node_k_in
         old_k_in = new_k_in - 2 * node_k_in
         old_k_out = new_k_out - node_k_out + node_k_in
         old_fitness = old_k_in / (old_k_in + old_k_out) ** self.alpha
@@ -76,9 +120,11 @@ class Community(object):
 
 class LFM_nx(object):
 
-    def __init__(self, G, alpha):
+    def __init__(self, G, alpha, greedy=False, weight=None):
         self.g = G
         self.alpha = alpha
+        self.greedy = greedy
+        self.weight = weight
 
     def execute(self):
         communities = []
@@ -102,11 +148,12 @@ class LFM_nx(object):
                 if to_be_add[1] < 0.0:
                     break
                 c.add_node(to_be_add[0])
-
-                to_be_remove = c.recalculate()
-                while to_be_remove is not None:
-                    c.remove_vertex(to_be_remove)
+                
+                if not self.greedy:
                     to_be_remove = c.recalculate()
+                    while to_be_remove is not None:
+                        c.remove_vertex(to_be_remove)
+                        to_be_remove = c.recalculate()
 
                 to_be_examined = c.get_neighbors()
 

@@ -271,7 +271,7 @@ def kclique(g_original, k):
     return NodeClustering(coms, g_original, "Klique", method_parameters={"k": k}, overlap=True)
 
 
-def lfm(g_original, alpha):
+def lfm(g_original, alpha, greedy=False, weight=None):
     """LFM is based on the local optimization of a fitness function.
     It finds both overlapping communities and the hierarchical structure.
 
@@ -293,7 +293,7 @@ def lfm(g_original, alpha):
 
     g = convert_graph_formats(g_original, nx.Graph)
 
-    algorithm = LFM_nx(g, alpha)
+    algorithm = LFM_nx(g, alpha, greedy, weight)
     coms = algorithm.execute()
 
     return NodeClustering(coms, g_original, "LFM", method_parameters={"alpha": alpha}, overlap=True)
